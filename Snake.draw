@@ -1,0 +1,125 @@
+/- CONFIG
+screensize: int 16
+
+
+maxlength: int screensize - 2
+maxlength: int maxlength * maxlength
+*editsize*(screensize)
+*updspec*()
+
+list apple (sc) [
+    x: int *genint*(1,sc - 1)
+    y: int *genint*(1,sc - 1)
+    return {x, y}
+]
+
+headx: int screensize / 2
+heady: int screensize / 2
+dx: int 0
+dy: int 0
+snakelength: int 1
+hix: list {headx}
+hiy: list {heady}
+applepos: list *apple*(screensize)
+win: bool false
+game: bool true
+while (game) [
+    i: int 0
+    key: str *inp*()
+    for (snakelength) [
+        x: int hix[i]
+        y: int hiy[i]
+        *drlin*(x,y,x,y)
+        i: int i + 1
+    ]
+    if (key == "right") [
+        dx: int 1
+        dy: int 0
+    ]
+    if (key == "left") [
+        dx: int -1
+        dy: int 0
+    ]
+    if (key == "up") [
+        dy: int -1
+        dx: int 0
+    ]
+    if (key == "down") [
+        dy: int 1
+        dx: int 0
+    ]
+    if (x > screensize - 1) [
+        game: bool false
+    ]
+    if (x < 1) [
+        game: bool false
+    ]
+    if (y > screensize - 1) [
+        game: bool false
+    ]
+    if (y < 1) [
+        game: bool false
+    ]
+    if (x == applepos[0] and y == applepos[1]) [
+        *addend*(hix,x)
+        *addend*(hiy,y)
+     
+        snakelength: int snakelength + 1
+        if (snakelength > maxlength - 1) [
+            win: bool true
+            game: bool false
+        ]
+        appleclip: bool false
+        while (not appleclip) [
+            applepos: list *apple*(screensize)
+            i: int 0
+            appleclip: bool true
+            for (snakelength) [
+                if (hix[i] == applepos[0] and hiy[i] == applepos[1]) [
+                    appleclip: bool false
+                ]
+                i: int i + 1
+            ]
+        ]
+    ]
+    *drlin*(applepos[0],applepos[1],applepos[0],applepos[1],2)
+    *clr*()
+    
+    *display*()
+    *papp*("Snake Length: ")
+    *papp*("| ")
+    *papp*(snakelength)
+    *pappout*()
+    *clrd*()
+    i: int 0
+    if (snakelength > 1) [
+        for (snakelength-1) [
+            *mut*(hix,i,hix[i+1])
+            *mut*(hiy,i,hiy[i+1])
+            i: int i + 1
+        ]
+    ]
+    headx: int headx + dx
+    heady: int heady + dy
+    *mut*(hix,-1,headx)
+    *mut*(hiy,-1,heady)
+    if (snakelength > 1) [
+        i: int 0
+        for (snakelength-1) [
+            if (headx == hix[i] and heady == hiy[i]) [
+                game: bool false
+            ]
+            i: int i + 1
+        ]
+    ]
+
+
+    *wait*(300)
+]
+*clr*()
+if (not win) [
+    *pout*("loser")
+]
+if (win) [
+    *pout*("You Win! Hooray!")
+]
