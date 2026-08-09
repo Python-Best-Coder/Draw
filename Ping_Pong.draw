@@ -1,0 +1,108 @@
+/- How to make ping pong
+/- -- CONFIG --
+
+screensize: int 20 /- update your preferred screensize here
+ballspeed: int 4 /- the higher it is the slower the ball will be, 5 for example will move the ball once every 5 game ticks
+balldy: int 3
+balldx: int 5
+
+/- Edit Specs
+*editsize*(screensize)
+screensize: int screensize-1
+*updspec*()
+pong1y: int 2
+pong2y: int 2
+ballx: int screensize/2
+bally: int screensize/2
+
+player1score: int 0
+player2score: int 0
+
+
+cooldown: int ballspeed
+
+key: str "none"
+
+Game: bool true
+
+while (Game) [ /- Game Loop
+    key: str *inp*()
+
+    /- 1. Handle inputs and update movement FIRST
+    if (key == "w") [
+        pong1y: int pong1y - 1
+        if (pong1y < 0) [
+            pong1y: int 0
+        ]
+    ]
+    if (key == "s") [
+        pong1y: int pong1y + 1
+        if (pong1y > screensize) [
+            pong1y: int screensize
+        ]
+    ]
+    if (key == "up") [
+        pong2y: int pong2y - 1
+        if (pong2y < 0) [
+            pong2y: int 0
+        ]
+    ]
+    if (key == "down") [
+        pong2y: int pong2y + 1
+        if (pong2y > screensize) [
+            pong2y: int screensize
+        ]
+    ]
+    if (cooldown == 0) [
+        ballx: int ballx + balldx
+        bally: int bally + balldy
+        if (ballx > screensize - 1) [
+            balldx: int 0 - balldx
+            temp2: bool true
+            if (bally < pong2y+2) [
+                if (bally > pong2y-2) [
+                    temp2: bool false
+                ]
+            ]
+            if (temp2) [
+                player1score: int player1score + 1
+            ]
+        ]
+        if (ballx < 1) [
+            balldx: int 0 - balldx
+            temp2: bool true
+            if (bally < pong1y+2) [
+                if (bally > pong1y-2) [
+                    temp2: bool false
+                ]
+            ]
+            if (temp2) [
+                player2score: int player2score + 1
+            ]
+        ]
+        if (bally > screensize) [
+            balldy: int 0 - balldy
+        ]
+        if (bally < 0) [
+            balldy: int 0 - balldy
+        ]
+    ]
+    cooldown: int cooldown - 1
+    if (cooldown < 0) [
+        cooldown: int ballspeed
+    ]
+
+    *clrd*()
+
+    *drlin*(0,pong1y-1,0,pong1y+1)
+    *drlin*(screensize,pong2y-1,screensize,pong2y+1)
+    *drlin*(ballx,bally,ballx,bally)
+    /- 4. Render to terminal
+    *clr*()
+    *display*()
+    *pout*("PLAYER1:")
+    *pout*(player1score)
+    *pout*("PLAYER2:")
+    *pout*(player2score)
+    *wait*(100)
+]
