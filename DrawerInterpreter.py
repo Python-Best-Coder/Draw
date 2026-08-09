@@ -1,8 +1,10 @@
 import Drawer
 import re
 import Manager3D
+import math
 import time
 import subprocess
+import random
 import os
 import types
 from keyboard._keyboard_event import KEY_DOWN, KEY_UP
@@ -57,6 +59,10 @@ def draw_line_func(args):
 
 def update_specs_func(args):
     Drawer.update_specs(Drawer.values)
+
+def randoint(args):
+    args2 = [parse_statement(arg) for arg in args]
+    return random.randint(args2[0][0],args2[1][0])
 
 def updatepos(data, args):
     global variables
@@ -127,14 +133,56 @@ def Printout(args):
     else:
         print(args[0])
 
+def mutate(args):
+    args2 = [parse_statement(arg) for arg in args]
+    l = args2[0][0]
+    toapp = args2[1][0]
+    toval = args2[2][0]
+    x = in_variables_index(args[0])
+    if x:
+        l[int(toapp)] = toval
+        variables[x]["data"] = l
+        variables[x]["type_data"] = l
+
+
+def add_to_list(args):
+    args2 = [parse_statement(arg) for arg in args]
+    l = args2[0][0]
+    toapp = args2[1][0]
+    x = in_variables_index(args[0])
+    if x:
+        l.append(toapp)
+        variables[x]["data"] = l
+        variables[x]["type_data"] = l
+
+def pap(args):
+    global todo
+    todo += str(parse_statement(args[0])[0])
+
+def papout(args):
+    global todo
+    print(todo)
+    todo = ""
+
+def papnew(args):
+    global todo
+    todo += "\n"
+
+def cos(args):
+    return math.cos(parse_statement(args[0])[0])
+
+def sin(args):
+    return math.sin(parse_statement(args[0])[0])
 def edit_screen_size(args):
     parsed = parse_statement(args[0])
     if parsed:
         Drawer.size = int(parsed[0])
         Drawer.values = [0] * (int(parsed[0]) ** 2)
 
-printhello = lambda args: print("Hello to you!")
 
+
+printhello = lambda args: print("Hello to you!")
+todo = ""
 CFuncs = {
     "hello": printhello,
     "display": Display_Screen,
@@ -147,6 +195,14 @@ CFuncs = {
     "inp": get_key,
     "drlin": draw_line_func,
     "updspec": update_specs_func,
+    "addend": add_to_list,
+    "cos": cos,
+    "sin": sin,
+    "papp": pap,
+    "pappout": papout,
+    "pappnew": papnew,
+    "mut": mutate,
+    "genint": randoint,
 }
 
 user_functions = {}
@@ -229,7 +285,7 @@ def parse_statement(state):
     BOOL = re.match(r"(^true|false$)",state)
     FLOAT = re.match(r"(^[+-]?[0-9]*\.[0-9]+|[0-9]+\.[0-9]*)$", state)
     CuFunc = re.match(r'^\*(.+?)\*\((.*)\)$', state)
-    POSSIBLEINDENT = re.match(r"^(.+)\[(.+)\]", state)
+    POSSIBLEINDENT = re.match(r"^(.+)\[(.+)\]$", state)
 
 
     if "." in state and not FLOAT:
@@ -276,7 +332,7 @@ def parse_statement(state):
             if op == "<": return (left_val < right_val, "bool")
             if op == ">": return (left_val > right_val, "bool")
 
-    for op in ["+", "-", "*", "/"]:
+    for op in ["+", "-", "*", "/", "%"]:
         if op in state and not (op in ("+", "-") and re.match(r"^[+-]?\d+(\.\d+)?$", state)):
             parts = state.rsplit(op, 1)
             left_p = parse_statement(parts[0])
@@ -287,6 +343,7 @@ def parse_statement(state):
                 elif op == "-": res = l_val - r_val
                 elif op == "*": res = l_val * r_val
                 elif op == "/": res = l_val / r_val
+                elif op == "%": res = l_val % r_val
                 res_type = "float" if isinstance(res, float) else "int"
                 return (res, res_type)
 
@@ -321,8 +378,10 @@ def parse_statement(state):
         var = POSSIBLEINDENT.group(1)
         ind = POSSIBLEINDENT.group(2)
         var = parse_statement(var)
-        if var[1] in ["list","str"]:
-            return parse_statement(var[0][parse_statement(ind)[0]])
+        if var[1] == "list":
+            return parse_statement(var[0][int(parse_statement(ind)[0])])
+        elif var[1] == "str":
+            return var[0][parse_statement(ind)[0]]
     if CuFunc:
         func_name = CuFunc.group(1)
         raw_args = CuFunc.group(2).strip()
@@ -480,4 +539,5 @@ def run_script(filename):
         lines = [line.strip() for line in f if line.strip() and not line.strip().startswith('/-')]
     run_block(lines)
 
-run_script("Ping_Pong.draw") # Put your .draw code here!
+run_script("Test.draw") # Put your .draw code here!
+# VS
