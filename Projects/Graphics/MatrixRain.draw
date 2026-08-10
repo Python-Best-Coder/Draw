@@ -1,0 +1,74 @@
+/- SCREEN AND CANVAS SETUP
+screensize: int 40
+*editsize*(screensize)
+*updspec*()
+
+c0: int 0
+c1: int 12
+c2: int 25
+c3: int 5
+c4: int 30
+c5: int 18
+c6: int 35
+c7: int 8
+c8: int 22
+c9: int 38
+
+while (true) [
+    
+
+    y: int 0
+    while (y < 40) [
+        x: int 0
+        while (x < 40) [
+            /- Find active column drop head
+            head: int 0
+            if (x < 4) [ head: int c0 ]
+            if (x >= 4) [ head: int c1 ]
+            if (x >= 8) [ head: int c2 ]
+            if (x >= 12) [ head: int c3 ]
+            if (x >= 16) [ head: int c4 ]
+            if (x >= 20) [ head: int c5 ]
+            if (x >= 24) [ head: int c6 ]
+            if (x >= 28) [ head: int c7 ]
+            if (x >= 32) [ head: int c8 ]
+            if (x >= 36) [ head: int c9 ]
+
+            /- Calculate distance from current y row to drop head
+            dist: int head - y
+
+            if (dist >= 0) [
+                if (dist < 10) [
+                    /- Bright white/cyan for leading drop head
+                    if (dist == 0) [
+                        *setco*(220, 255, 220)
+                    ]
+                    /- Fading green trail behind the head
+                    if (dist > 0) [
+                        bright: int 255 - (dist * 24)
+                        *setco*(0, bright, 40)
+                    ]
+                    *drlin*(x, y, x + 1, y)
+                ]
+            ]
+
+            x: int x + 2
+        ]
+        y: int y + 1
+    ]
+    *clr*()
+    *display*()
+    *wait*(20)
+
+
+    c0: int (c0 + 1) % 50
+    c1: int (c1 + 2) % 55
+    c2: int (c2 + 1) % 48
+    c3: int (c3 + 3) % 60
+    c4: int (c4 + 1) % 52
+    c5: int (c5 + 2) % 45
+    c6: int (c6 + 1) % 58
+    c7: int (c7 + 3) % 49
+    c8: int (c8 + 2) % 53
+    c9: int (c9 + 1) % 47
+]
