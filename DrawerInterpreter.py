@@ -1,5 +1,7 @@
 import Drawer
 import re
+import base64
+import sys
 import Manager3D
 import math
 import time
@@ -52,11 +54,22 @@ def draw_line_func(args):
         p2 = parse_statement(args[1])
         p3 = parse_statement(args[2])
         p4 = parse_statement(args[3])
-        if len(args) > 4:
+        if len(args) > 4 and not len(args) > 5:
             brightness = parse_statement(args[4])
-        if p1 and p2 and p3 and p4:
+        if len(args) > 6:
+            brightness = parse_statement(args[6])
+        
+        if p1 and p2 and p3 and p4 and not len(args) > 5:
             Drawer.draw_line(int(p1[0]), int(p2[0]), int(p3[0]), int(p4[0]), int(brightness[0]))
-
+        if len(args) >= 6:
+            p5 = parse_statement(args[4])
+            p6 = parse_statement(args[5])
+            # EXTRACT INTEGER VALUES [0] BEFORE PASSING TO MANAGER3D:
+            Manager3D.draw_line_3d(
+                int(p1[0]), int(p2[0]), int(p3[0]), 
+                int(p4[0]), int(p5[0]), int(p6[0])
+            )
+            
 def update_specs_func(args):
     Drawer.update_specs(Drawer.values)
 
@@ -143,8 +156,40 @@ def mutate(args):
         l[int(toapp)] = toval
         variables[x]["data"] = l
         variables[x]["type_data"] = l
+def draw_kitty(args):
+    """
+    Renders Drawer's current buffer directly inside Kitty using the Kitty Graphics Protocol.
+    Can be called inside Drawer.py or externally as Drawer.draw_kitty().
+    """
+    
+    byte_data = bytearray()
+    
+    # Map default brightness levels (1-6) to grayscale RGB intensity if uncolored
+    gray_levels = [0, 42, 85, 128, 170, 213, 255]
 
+    for cell in Drawer.values:
+        if isinstance(cell, tuple):
+            brightness, (r, g, b) = cell
+            if brightness == 0:
+                byte_data.extend([0, 0, 0])
+            else:
+                byte_data.extend([int(r) & 0xFF, int(g) & 0xFF, int(b) & 0xFF])
+        else:
+            brightness = cell
+            if 1 <= brightness <= 6:
+                val = gray_levels[brightness]
+                byte_data.extend([val, val, val])
+            else:
+                byte_data.extend([0, 0, 0])
 
+    encoded = base64.b64encode(byte_data).decode("ascii")
+
+    # Reposition terminal cursor to top-left corner
+    sys.stdout.write("\033[H")
+    
+    # Kitty terminal graphics escape payload
+    sys.stdout.write(f"\033_Ga=T,f=24,s={Drawer.size},v={Drawer.size};{encoded}\033\\")
+    sys.stdout.flush()
 def add_to_list(args):
     args2 = [parse_statement(arg) for arg in args]
     l = args2[0][0]
@@ -170,6 +215,15 @@ def papnew(args):
 
 def cos(args):
     return math.cos(parse_statement(args[0])[0])
+def set_color(args):
+    if len(args) > 0:
+        args2 = [parse_statement(arg) for arg in args]
+        r = args2[0][0]
+        g = args2[1][0]
+        b = args2[2][0]
+        Drawer.switch_color(r,g,b)
+    else:
+        Drawer.switch_color()
 
 def sin(args):
     return math.sin(parse_statement(args[0])[0])
@@ -203,6 +257,8 @@ CFuncs = {
     "pappnew": papnew,
     "mut": mutate,
     "genint": randoint,
+    "setco": set_color,
+    "dispkit": draw_kitty,
 }
 
 user_functions = {}
@@ -325,6 +381,10 @@ def parse_statement(state):
             right_p = parse_statement(parts[1])
             left_val = left_p[0] if left_p else None
             right_val = right_p[0] if right_p else None
+            if left_val is None or right_val is None:
+                # Option A: Fallback to 0 if an uninitialized/invalid variable was passed
+                left_val = left_val if left_val is not None else 0
+                right_val = right_val if right_val is not None else 0
             if op == "==": return (left_val == right_val, "bool")
             if op == "!=": return (left_val != right_val, "bool")
             if op == "<=": return (left_val <= right_val, "bool")
@@ -337,14 +397,22 @@ def parse_statement(state):
             parts = state.rsplit(op, 1)
             left_p = parse_statement(parts[0])
             right_p = parse_statement(parts[1])
+            
             if left_p is not None and right_p is not None:
                 l_val, r_val = left_p[0], right_p[0]
-                if op == "+": res = l_val + r_val
-                elif op == "-": res = l_val - r_val
-                elif op == "*": res = l_val * r_val
-                elif op == "/": res = l_val / r_val
-                elif op == "%": res = l_val % r_val
-                res_type = "float" if isinstance(res, float) else "int"
+                try:
+                    if op == "+": res = l_val + r_val
+                    elif op == "-" and not INTEGER: res = l_val - r_val
+                    elif op == "*": res = l_val * r_val
+                    elif op == "/": res = l_val / r_val
+                    elif op == "%":
+                        if type(l_val).__name__ == "list":
+                            l_val = l_val[0]
+                        res = l_val % r_val
+                    res_type = "float" if isinstance(res, float) else "int"
+                except Exception:
+                    res = 0
+                    res_type = "int"
                 return (res, res_type)
 
     v = in_variables(state)
@@ -378,10 +446,11 @@ def parse_statement(state):
         var = POSSIBLEINDENT.group(1)
         ind = POSSIBLEINDENT.group(2)
         var = parse_statement(var)
-        if var[1] == "list":
-            return parse_statement(var[0][int(parse_statement(ind)[0])])
-        elif var[1] == "str":
-            return var[0][parse_statement(ind)[0]]
+        if var:
+            if var[1] == "list":
+                return parse_statement(var[0][int(parse_statement(ind)[0])])
+            elif var[1] == "str":
+                return var[0][parse_statement(ind)[0]]
     if CuFunc:
         func_name = CuFunc.group(1)
         raw_args = CuFunc.group(2).strip()
@@ -399,7 +468,7 @@ def parse_statement(state):
     
     return None
 
-def execute_line(line):
+def execute_line(line,i):
     if line.startswith("return"):
         expr = line[6:].strip()
         val = parse_statement(expr)[0] if expr else None
@@ -461,7 +530,7 @@ def execute_line(line):
                     properties[name](x["data"], hello)   
         else:
             if not parse_statement(line):
-                raise NameError(f"Unknown Statement: {line}")
+                raise NameError(f"Unknown Statement on line {i}: {line}")
 
 def run_block(lines):
     i = 0
@@ -470,7 +539,8 @@ def run_block(lines):
         line = line.split("/-")[0].strip()
         
         func_match = re.match(r"^(int|str|string|list|float|bool|void)\s+([a-zA-Z_]\w*)\s*\((.*)\)\s*\[$", line)
-        block_match = re.match(r"^(if|for|while)\s*\((.+)\)\s*\[$", line)
+        block_match = re.match(r"^(if|for|while|match)\s*\((.+)\)\s*\[$", line)
+        one_lined = re.match(r"^(if)\s*\((.+?)\)\s*\[(.+?)\]$",line)
         
         if func_match:
             ret_type = func_match.group(1)
@@ -527,11 +597,38 @@ def run_block(lines):
                     iterable = loop_val
                 for _ in iterable:
                     run_block(block_lines)
+            elif keyword == "match":
+                variable = parse_statement(condition_str)[0]
+                matched = False
+                for line in block_lines:
+                    wow = re.match(r"case\s+(.+?)\s*\[\s*(.+?)\s*\]",line)
+                    default = re.match(r"^default\s*\[\s*(.+)\s*\]$",line)
+                    if wow:
+                        matching = wow.group(1)
+                        state = wow.group(2)
+                        if variable == parse_statement(matching)[0]:
+                            matched = True
+                            run_block(state.split(";"))
+                            break
+                    if default:
+                        if not matched:
+                            run_block(default.group(1).split(";"))
+                            break
+
+
             elif keyword == "while":
                 while parse_statement(condition_str)[0]:
                     run_block(block_lines)
+        elif one_lined:
+            condition_str = one_lined.group(2)
+            evaluation = one_lined.group(3)
+            cond_val = parse_statement(condition_str)[0]
+            if cond_val:
+                run_block(evaluation.split(";"))
+            
+
         else:
-            execute_line(line)
+            execute_line(line,i)
         i += 1
 
 def run_script(filename):
