@@ -31,6 +31,9 @@ def get_key(args):
     global kimp
     return kimp
 
+def get_time(args):
+    return time.time()
+
 def wait(args):
     if not args or not args[0]:
         return
@@ -233,7 +236,11 @@ def edit_screen_size(args):
         Drawer.size = int(parsed[0])
         Drawer.values = [0] * (int(parsed[0]) ** 2)
 
+def drawin(args):
+    Drawer.drawscreen(Drawer.values)
 
+def init(args):
+    Drawer.init_window()
 
 printhello = lambda args: print("Hello to you!")
 todo = ""
@@ -259,6 +266,9 @@ CFuncs = {
     "genint": randoint,
     "setco": set_color,
     "dispkit": draw_kitty,
+    "watch": get_time,
+    "rendwin": drawin,
+    "init": init
 }
 
 user_functions = {}
@@ -636,5 +646,5 @@ def run_script(filename):
         lines = [line.strip() for line in f if line.strip() and not line.strip().startswith('/-')]
     run_block(lines)
 
-run_script("Test.draw") # Put your .draw code here!
+run_script("Ping_Pong.draw") # Put your .draw code here!
 # VS
